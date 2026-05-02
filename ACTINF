@@ -1,0 +1,1122 @@
+swamys-neural-systems/
+├── app.py
+├── requirements.txt
+├── .streamlit/
+│   └── config.toml
+├── core/
+│   ├── __init__.py
+│   ├── active_inference.py
+│   ├── spiking_column.py
+│   └── curiosity_engine.py
+├── modules/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── emergency.py
+│   ├── neoplastic.py
+│   ├── autoimmune.py
+│   ├── infectious.py
+│   └── mental_health.py
+└── ui/
+    ├── __init__.py
+    ├── dashboard.py
+    ├── chat_panel.py
+    ├── case_input.py
+    ├── report_viewer.py
+    ├── templates.py
+    └── style.css
+requirements.txt
+txt
+
+
+streamlit>=1.36.0
+numpy>=1.24.0
+scipy>=1.11.0
+plotly>=5.18.0
+pandas>=2.0.0
+.streamlit/config.toml
+toml
+
+
+[theme]
+primaryColor = "#2E9AFE"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1A1E27"
+textColor = "#F2F2F2"
+font = "sans serif"
+[server]
+headless = true
+port = 8501
+enableCORS = false
+app.py
+python
+
+
+import streamlit as st
+st.set_page_config(
+    page_title="Swamy's Neural Systems – Medical AO",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+# ---- CUSTOM CSS ----
+st.markdown("""
+<style>
+body, .stApp {
+    background-color: #0E1117;
+    color: #F2F2F2;
+}
+.title-main {
+    color: #58D3F7;
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 0;
+}
+.subtitle {
+    color: #A9D0F5;
+    font-style: italic;
+    margin-top: -5px;
+    font-size: 1.2rem;
+}
+.stSidebar {
+    background-color: #1A1E27;
+}
+.stButton>button {
+    background: linear-gradient(90deg, #2E9AFE, #58D3F7);
+    color: white;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 600;
+}
+.report-box {
+    background-color: #1B1F2A;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #2E9AFE;
+}
+.metric-card {
+    background: linear-gradient(135deg, #1A1E27, #0E1117);
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #2E9AFE;
+    margin: 10px 0;
+}
+.chat-ao {
+    color: #58D3F7;
+    background-color: #1A1E27;
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin: 5px 0;
+}
+.chat-user {
+    color: #F2F2F2;
+    background-color: #2E9AFE;
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin: 5px 0;
+    text-align: right;
+}
+</style>
+""", unsafe_allow_html=True)
+# ---- HEADER ----
+col1, col2 = st.columns([1, 9])
+with col1:
+    st.markdown("# 🧠")
+with col2:
+    st.markdown("<h1 class='title-main'>Swamy's Neural Systems</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Where Reason Meets Inference</p>", unsafe_allow_html=True)
+st.markdown("---")
+# ---- SIDEBAR ----
+st.sidebar.markdown("## 🧠 Medical AO")
+st.sidebar.markdown("*Allostatic Prosthesis*")
+st.sidebar.markdown("---")
+page = st.sidebar.radio(
+    "Navigation",
+    ["🏠 Home", "📋 Case Input", "📊 Dashboard", "📑 25-Step Report", "💬 Dialogue"]
+)
+# ---- SESSION STATE ----
+if "module" not in st.session_state:
+    st.session_state.module = None
+if "posterior" not in st.session_state:
+    st.session_state.posterior = None
+if "policy" not in st.session_state:
+    st.session_state.policy = None
+if "observations" not in st.session_state:
+    st.session_state.observations = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+# ---- PAGE ROUTING ----
+if page == "🏠 Home":
+    from ui.dashboard import render_home
+    render_home()
+elif page == "📋 Case Input":
+    from ui.case_input import render_case_input
+    render_case_input()
+elif page == "📊 Dashboard":
+    from ui.dashboard import render_dashboard
+    render_dashboard()
+elif page == "📑 25-Step Report":
+    from ui.report_viewer import render_report_panel
+    render_report_panel()
+elif page == "💬 Dialogue":
+    from ui.chat_panel import render_chat_panel
+    render_chat_panel()
+core/init.py
+python
+
+
+from .active_inference import ClinicalActiveInferenceAgent
+from .spiking_column import CorticalColumn
+from .curiosity_engine import CuriosityEngine
+core/active_inference.py
+python
+
+
+import numpy as np
+from scipy.special import softmax
+class ClinicalActiveInferenceAgent:
+    """Active inference agent for clinical decision-making."""
+    
+    def __init__(self, A, B, C, D, policies, observations, states, actions):
+        """
+        A: Likelihood matrix (observations x states)
+        B: Transition matrix (states x states x actions)
+        C: Preference vector (observations)
+        D: Prior over initial states
+        policies: List of action sequences
+        """
+        self.A = np.array(A)
+        self.B = np.array(B) if B is not None else np.eye(len(states))
+        self.C = np.array(C) if C is not None else np.zeros(len(observations))
+        self.D = np.array(D) if D is not None else np.ones(len(states)) / len(states)
+        self.policies = policies
+        self.observations = observations
+        self.states = states
+        self.actions = actions
+        self.qs = self.D.copy()
+    
+    def infer_states(self, obs_vector):
+        """Variational inference: update beliefs given observations."""
+        obs = np.array(obs_vector)
+        
+        # Log-likelihood of observations under each state
+        log_likelihood = np.zeros(len(self.states))
+        
+        for s in range(len(self.states)):
+            ll = 0
+            for o in range(len(self.observations)):
+                p = self.A[o, s]
+                if obs[o] == 1:
+                    ll += np.log(p + 1e-10)
+                else:
+                    ll += np.log(1 - p + 1e-10)
+            log_likelihood[s] = ll
+        
+        # Posterior = prior * likelihood (in log space)
+        log_posterior = np.log(self.D + 1e-10) + log_likelihood
+        self.qs = softmax(log_posterior)
+        
+        return self.qs
+    
+    def compute_expected_free_energy(self):
+        """Compute EFE for each policy/action."""
+        efe = np.zeros(len(self.actions))
+        
+        for a in range(len(self.actions)):
+            # Epistemic value: expected information gain
+            epistemic = -np.sum(self.qs * np.log(self.qs + 1e-10))
+            
+            # Pragmatic value: expected preference satisfaction
+            expected_obs = self.A @ self.qs
+            pragmatic = -np.sum(expected_obs * self.C)
+            
+            efe[a] = epistemic + pragmatic
+        
+        return efe
+    
+    def select_policy(self):
+        """Select action minimizing expected free energy."""
+        efe = self.compute_expected_free_energy()
+        policy_posterior = softmax(-efe)
+        selected = np.argmax(policy_posterior)
+        return selected, policy_posterior, efe
+    
+    def step(self, obs_vector):
+        """Full inference step: perceive, infer, plan."""
+        posterior = self.infer_states(obs_vector)
+        policy, policy_posterior, efe = self.select_policy()
+        
+        free_energy = -np.sum(posterior * np.log(posterior + 1e-10))
+        
+        return posterior, policy, free_energy
+core/spiking_column.py
+python
+
+
+import numpy as np
+from dataclasses import dataclass, field
+@dataclass
+class IzhikevichNeuron:
+    """Izhikevich neuron model."""
+    a: float = 0.02
+    b: float = 0.2
+    c: float = -65.0
+    d: float = 8.0
+    v: float = -65.0
+    u: float = 0.0
+    fired: bool = False
+    
+    def step(self, I: float, dt: float = 0.25) -> float:
+        """Integrate one timestep."""
+        if self.v >= 30.0:
+            self.v = self.c
+            self.u += self.d
+            self.fired = True
+        else:
+            self.fired = False
+        
+        dv = 0.04 * self.v**2 + 5 * self.v + 140 - self.u + I
+        du = self.a * (self.b * self.v - self.u)
+        
+        self.v += dt * dv
+        self.u += dt * du
+        
+        return self.v
+class CorticalColumn:
+    """7-neuron cortical microcircuit generating multi-band oscillations."""
+    
+    def __init__(self, n_rs=2, n_fs=2, n_ib=1, n_lts=1, n_acp=1, n_sgi=1, n_tc=1):
+        # Regular spiking (layer 2/3 pyramidal)
+        self.rs = [IzhikevichNeuron(0.02, 0.2, -65, 8) for _ in range(n_rs)]
+        # Fast spiking (GABAergic interneurons - gamma)
+        self.fs = [IzhikevichNeuron(0.1, 0.2, -65, 2) for _ in range(n_fs)]
+        # Intrinsically bursting (layer 5 pyramidal - beta)
+        self.ib = [IzhikevichNeuron(0.02, 0.2, -55, 4) for _ in range(n_ib)]
+        # Low-threshold spiking (slow inhibition)
+        self.lts = [IzhikevichNeuron(0.02, 0.25, -65, 2) for _ in range(n_lts)]
+        # Alpha-generating (posterior alpha rhythm)
+        self.acp = [IzhikevichNeuron(0.01, 0.1, -65, 8) for _ in range(n_acp)]
+        # Slow gamma interneuron (theta modulation)
+        self.sgi = [IzhikevichNeuron(0.005, 0.2, -65, 0.5) for _ in range(n_sgi)]
+        # Thalamocortical (delta rhythm)
+        self.tc = [IzhikevichNeuron(0.02, 0.25, -65, 0.05) for _ in range(n_tc)]
+        
+        self.time = 0
+    
+    def step(self, sensory_input: float = 5.0, prediction_error: float = 2.0) -> list:
+        """Step all neurons and return membrane potentials."""
+        self.time += 1
+        
+        # Compute currents with oscillatory modulation
+        I_rs = sensory_input + 3.0 * np.sin(self.time * 0.1)
+        I_fs = prediction_error + 5.0 * np.sin(self.time * 0.3)
+        I_ib = sensory_input * 0.8 + 2.0 * np.sin(self.time * 0.15)
+        I_lts = 2.0 + 1.0 * np.sin(self.time * 0.05)
+        I_acp = 3.0 + 2.0 * np.sin(self.time * 0.08)
+        I_sgi = 1.5 + 1.0 * np.sin(self.time * 0.04)
+        I_tc = 2.0 + 1.5 * np.sin(self.time * 0.02)
+        
+        # Step each neuron population
+        v_rs = np.mean([n.step(I_rs) for n in self.rs])
+        v_fs = np.mean([n.step(I_fs) for n in self.fs])
+        v_ib = np.mean([n.step(I_ib) for n in self.ib])
+        v_lts = np.mean([n.step(I_lts) for n in self.lts])
+        v_acp = np.mean([n.step(I_acp) for n in self.acp])
+        v_sgi = np.mean([n.step(I_sgi) for n in self.sgi])
+        v_tc = np.mean([n.step(I_tc) for n in self.tc])
+        
+        return [v_rs, v_fs, v_ib, v_lts, v_acp, v_sgi, v_tc]
+core/curiosity_engine.py
+python
+
+
+import numpy as np
+class CuriosityEngine:
+    """Identifies epistemic actions to reduce diagnostic uncertainty."""
+    
+    def __init__(self, entropy_threshold: float = 0.4):
+        self.entropy_threshold = entropy_threshold
+    
+    def compute_entropy(self, distribution: np.ndarray) -> float:
+        """Compute Shannon entropy of a probability distribution."""
+        p = np.array(distribution)
+        p = p[p > 0]
+        return -np.sum(p * np.log2(p + 1e-12))
+    
+    def identify_uncertainty(self, posterior: np.ndarray) -> float:
+        """Return normalized entropy as uncertainty measure."""
+        H = self.compute_entropy(posterior)
+        H_max = np.log2(len(posterior) + 1e-12)
+        return H / (H_max + 1e-12)
+    
+    def suggest(self, posterior: np.ndarray, observations: list, checked: list = None) -> list:
+        """Generate natural-language suggestions for reducing uncertainty."""
+        suggestions = []
+        uncertainty = self.identify_uncertainty(posterior)
+        
+        if uncertainty > self.entropy_threshold:
+            suggestions.append(
+                f"⚠️ High diagnostic uncertainty ({uncertainty:.1%}). Consider additional investigations."
+            )
+        
+        # Suggest unchecked high-value observations
+        if checked is not None:
+            unchecked = [obs for obs, c in zip(observations, checked) if c == 0]
+            if unchecked and uncertainty > 0.3:
+                suggestions.append(f"📋 Consider evaluating: {', '.join(unchecked[:3])}")
+        
+        if not suggestions:
+            suggestions.append("✅ Diagnostic confidence is adequate.")
+        
+        return suggestions
+modules/init.py
+python
+
+
+from .emergency import EmergencyModule
+from .neoplastic import NeoplasticModule
+from .autoimmune import AutoimmuneModule
+from .infectious import InfectiousModule
+from .mental_health import MentalHealthModule
+modules/base.py
+python
+
+
+import numpy as np
+from core.active_inference import ClinicalActiveInferenceAgent
+class SpecialistModule:
+    """Base class for clinical specialist modules."""
+    
+    def __init__(self, name: str, observations: list, states: list, 
+                 actions: list, likelihood_matrix: np.ndarray):
+        self.name = name
+        self.observations = observations
+        self.states = states
+        self.actions = actions
+        self.A = likelihood_matrix
+        
+        # Build agent
+        n_states = len(states)
+        n_actions = len(actions)
+        
+        B = np.eye(n_states)  # Identity transition (single-step inference)
+        C = np.zeros(len(observations))  # Neutral preferences
+        D = np.ones(n_states) / n_states  # Uniform prior
+        policies = list(range(n_actions))
+        
+        self.agent = ClinicalActiveInferenceAgent(
+            A=self.A,
+            B=B,
+            C=C,
+            D=D,
+            policies=policies,
+            observations=observations,
+            states=states,
+            actions=actions
+        )
+modules/emergency.py
+python
+
+
+import numpy as np
+from .base import SpecialistModule
+class EmergencyModule(SpecialistModule):
+    
+    def __init__(self):
+        observations = [
+            "PEFR < 50%",
+            "RR ≥ 25",
+            "HR ≥ 110",
+            "Cannot complete sentences",
+            "O2 sat < 92%",
+            "Normal/rising pCO2",
+            "Hypotension",
+            "Altered mental status"
+        ]
+        
+        states = [
+            "Moderate asthma",
+            "Acute severe asthma",
+            "Life-threatening asthma",
+            "Sepsis",
+            "Anaphylaxis"
+        ]
+        
+        actions = [
+            "Oxygen + nebulizers + steroids (asthma protocol)",
+            "Sepsis Six bundle",
+            "Immediate intubation + ICU",
+            "Admit for observation",
+            "Epinephrine + supportive care"
+        ]
+        
+        # Likelihood matrix: P(observation | state)
+        A = np.array([
+            [0.2, 0.9, 1.0, 0.1, 0.1],  # PEFR < 50%
+            [0.2, 1.0, 1.0, 0.3, 0.3],  # RR ≥ 25
+            [0.2, 1.0, 1.0, 0.8, 0.5],  # HR ≥ 110
+            [0.2, 1.0, 1.0, 0.4, 0.3],  # Cannot complete sentences
+            [0.1, 0.3, 1.0, 0.5, 0.2],  # O2 sat < 92%
+            [0.0, 0.1, 1.0, 0.3, 0.1],  # Normal/rising pCO2
+            [0.0, 0.1, 0.8, 1.0, 0.8],  # Hypotension
+            [0.0, 0.1, 0.8, 0.9, 0.3]   # Altered mental status
+        ])
+        
+        super().__init__("Emergency Medicine", observations, states, actions, A)
+modules/neoplastic.py
+python
+
+
+import numpy as np
+from .base import SpecialistModule
+class NeoplasticModule(SpecialistModule):
+    
+    def __init__(self):
+        observations = [
+            "Epigastric pain",
+            "Back pain",
+            "Jaundice",
+            "Weight loss",
+            "New-onset diabetes",
+            "Smoking history",
+            "Mass on CT",
+            "Elevated CA 19-9"
+        ]
+        
+        states = [
+            "Pancreatic adenocarcinoma - resectable",
+            "Pancreatic adenocarcinoma - unresectable",
+            "Chronic pancreatitis",
+            "Cholangiocarcinoma"
+        ]
+        
+        actions = [
+            "Whipple surgery + adjuvant chemotherapy",
+            "Palliative chemotherapy + biliary stent",
+            "EUS + biopsy for staging",
+            "Pain management + hospice referral"
+        ]
+        
+        A = np.array([
+            [0.8, 1.0, 0.7, 0.5],  # Epigastric pain
+            [0.8, 0.9, 0.3, 0.3],  # Back pain
+            [0.8, 1.0, 0.2, 0.9],  # Jaundice
+            [0.9, 1.0, 0.4, 0.6],  # Weight loss
+            [0.4, 0.5, 0.1, 0.1],  # New-onset diabetes
+            [0.5, 0.6, 0.5, 0.3],  # Smoking
+            [0.9, 1.0, 0.2, 0.8],  # Mass on CT
+            [0.7, 0.9, 0.1, 0.4]   # Elevated CA 19-9
+        ])
+        
+        super().__init__("Neoplastic", observations, states, actions, A)
+modules/autoimmune.py
+python
+
+
+import numpy as np
+from .base import SpecialistModule
+class AutoimmuneModule(SpecialistModule):
+    
+    def __init__(self):
+        observations = [
+            "Recurrent diarrhea",
+            "Abdominal pain",
+            "Fever",
+            "Joint pain",
+            "Erythema nodosum",
+            "Noncaseating granuloma",
+            "Ileal involvement on imaging",
+            "Perianal disease"
+        ]
+        
+        states = [
+            "Crohn's disease - active inflammation",
+            "Crohn's disease - stricturing",
+            "Ulcerative colitis",
+            "Irritable bowel syndrome"
+        ]
+        
+        actions = [
+            "Corticosteroids + anti-TNF therapy",
+            "Surgical consultation",
+            "Mesalamine + probiotics",
+            "Symptomatic management (IBS protocol)"
+        ]
+        
+        A = np.array([
+            [1.0, 0.8, 0.9, 0.7],  # Diarrhea
+            [1.0, 0.9, 0.8, 0.6],  # Abdominal pain
+            [0.7, 0.3, 0.5, 0.1],  # Fever
+            [0.6, 0.2, 0.3, 0.1],  # Joint pain
+            [0.4, 0.1, 0.1, 0.0],  # Erythema nodosum
+            [0.8, 0.6, 0.0, 0.0],  # Granuloma
+            [0.9, 0.9, 0.2, 0.0],  # Ileal involvement
+            [0.6, 0.8, 0.1, 0.0]   # Perianal disease
+        ])
+        
+        super().__init__("Autoimmune / GI", observations, states, actions, A)
+modules/infectious.py
+python
+
+
+import numpy as np
+from .base import SpecialistModule
+class InfectiousModule(SpecialistModule):
+    
+    def __init__(self):
+        observations = [
+            "Jaundice",
+            "Ascites",
+            "Coagulopathy",
+            "Transfusion before 1992",
+            "Mildly elevated AST/ALT",
+            "Hepatomegaly",
+            "HCV antibody positive",
+            "Fever > 38°C"
+        ]
+        
+        states = [
+            "Chronic HCV - compensated cirrhosis",
+            "Chronic HCV - decompensated cirrhosis",
+            "Hepatocellular carcinoma",
+            "Alcoholic cirrhosis"
+        ]
+        
+        actions = [
+            "Direct-acting antivirals + HCC surveillance",
+            "Diuretics + beta-blockers + transplant evaluation",
+            "Locoregional therapy / resection / sorafenib",
+            "Alcohol abstinence + nutritional support"
+        ]
+        
+        A = np.array([
+            [0.3, 0.9, 0.7, 0.8],  # Jaundice
+            [0.0, 0.9, 0.6, 0.8],  # Ascites
+            [0.1, 0.9, 0.7, 0.8],  # Coagulopathy
+            [0.8, 0.7, 0.5, 0.1],  # Transfusion
+            [0.7, 0.6, 0.5, 0.8],  # Elevated enzymes
+            [0.5, 0.8, 0.9, 0.7],  # Hepatomegaly
+            [0.9, 0.9, 0.7, 0.1],  # HCV ab+
+            [0.0, 0.2, 0.2, 0.2]   # Fever
+        ])
+        
+        super().__init__("Infectious / Hepatology", observations, states, actions, A)
+modules/mental_health.py
+python
+
+
+import numpy as np
+from .base import SpecialistModule
+class MentalHealthModule(SpecialistModule):
+    
+    def __init__(self):
+        observations = [
+            "Left-sided weakness",
+            "Midline sensory split",
+            "Hoover sign positive",
+            "La belle indifférence",
+            "Significant emotional stress",
+            "Normal brain CT",
+            "Young female",
+            "No injury from fall"
+        ]
+        
+        states = [
+            "Conversion disorder (FND)",
+            "Stroke",
+            "Multiple sclerosis",
+            "Migraine with aura"
+        ]
+        
+        actions = [
+            "Reassurance + physiotherapy + psychiatric referral",
+            "Thrombolysis / antiplatelets + admission",
+            "IV steroids + MRI + neurology consult",
+            "Abortive therapy + lifestyle modification"
+        ]
+        
+        A = np.array([
+            [1.0, 1.0, 0.8, 0.3],  # Left weakness
+            [0.9, 0.1, 0.1, 0.1],  # Midline split
+            [0.95, 0.05, 0.05, 0.05],  # Hoover sign
+            [0.8, 0.1, 0.1, 0.1],  # La belle indifference
+            [0.9, 0.2, 0.2, 0.3],  # Emotional stress
+            [0.9, 0.5, 0.3, 0.7],  # Normal CT
+            [0.6, 0.3, 0.5, 0.6],  # Young female
+            [0.7, 0.1, 0.1, 0.1]   # No injury
+        ])
+        
+        super().__init__("Mental Health / Neurology", observations, states, actions, A)
+ui/init.py
+python
+
+
+# UI module initialization
+ui/case_input.py
+python
+
+
+import streamlit as st
+from modules import (
+    EmergencyModule, NeoplasticModule, AutoimmuneModule,
+    InfectiousModule, MentalHealthModule
+)
+def render_case_input():
+    st.markdown("## 📋 Clinical Case Input")
+    st.markdown("Select a specialist module and enter clinical findings.")
+    
+    modules = {
+        "🚨 Emergency Medicine": EmergencyModule(),
+        "🔬 Neoplastic": NeoplasticModule(),
+        "🛡️ Autoimmune / GI": AutoimmuneModule(),
+        "🦠 Infectious / Hepatology": InfectiousModule(),
+        "🧠 Mental Health / Neurology": MentalHealthModule()
+    }
+    
+    selected = st.selectbox("Select Clinical Module", list(modules.keys()))
+    module = modules[selected]
+    
+    st.markdown("---")
+    st.markdown("### Clinical Findings")
+    st.markdown("*Check all that apply:*")
+    
+    cols = st.columns(2)
+    checked = []
+    
+    for i, obs in enumerate(module.observations):
+        with cols[i % 2]:
+            val = st.checkbox(obs, key=f"obs_{i}")
+            checked.append(1 if val else 0)
+    
+    st.markdown("---")
+    
+    if st.button("🔍 Run Active Inference", use_container_width=True):
+        posterior, policy, free_energy = module.agent.step(checked)
+        
+        st.session_state.module = module
+        st.session_state.posterior = posterior
+        st.session_state.policy = policy
+        st.session_state.observations = checked
+        
+        st.success("✅ Inference complete. Navigate to **Dashboard** or **25-Step Report**.")
+        
+        # Quick preview
+        st.markdown("### Quick Results Preview")
+        top_idx = posterior.argmax()
+        st.metric(
+            label="Most Likely Diagnosis",
+            value=module.states[top_idx],
+            delta=f"{posterior[top_idx]*100:.1f}% confidence"
+        )
+ui/dashboard.py
+python
+
+
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+from core.spiking_column import CorticalColumn
+from core.curiosity_engine import CuriosityEngine
+def render_home():
+    st.markdown("## 🏠 Welcome to Medical AO")
+    st.markdown("""
+    <div class='metric-card'>
+    <h3>Human Dyad • Allostatic Prosthesis • Clinical Exoskeleton</h3>
+    <p>This system integrates <b>Active Inference</b> with biologically-plausible 
+    <b>spiking neural dynamics</b> to support clinical reasoning across five specialist domains:</p>
+    <ul>
+        <li>🚨 Emergency Medicine</li>
+        <li>🔬 Neoplastic Disorders</li>
+        <li>🛡️ Autoimmune / GI</li>
+        <li>🦠 Infectious / Hepatology</li>
+        <li>🧠 Mental Health / Neurology</li>
+    </ul>
+    <p>Navigate to <b>Case Input</b> to begin clinical inference.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### System Architecture")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        <div class='metric-card'>
+        <h4>🧮 Active Inference</h4>
+        <p>Bayesian belief updating with expected free energy minimization</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div class='metric-card'>
+        <h4>⚡ Spiking Dynamics</h4>
+        <p>7-neuron cortical microcircuit (gamma/beta/alpha/theta/delta)</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div class='metric-card'>
+        <h4>🔍 Curiosity Engine</h4>
+        <p>Epistemic action selection to reduce diagnostic uncertainty</p>
+        </div>
+        """, unsafe_allow_html=True)
+def render_dashboard():
+    st.markdown("## 📊 Diagnostic Dashboard")
+    
+    if st.session_state.posterior is None:
+        st.warning("⚠️ No inference results. Please run **Case Input** first.")
+        return
+    
+    module = st.session_state.module
+    posterior = st.session_state.posterior
+    policy = st.session_state.policy
+    observations = st.session_state.observations
+    
+    # ---- DIAGNOSTIC PROBABILITIES ----
+    st.markdown("### Posterior Beliefs (Diagnostic Probabilities)")
+    
+    fig_bar = go.Figure(go.Bar(
+        x=posterior * 100,
+        y=module.states,
+        orientation='h',
+        marker=dict(
+            color=posterior,
+            colorscale='Blues',
+            cmin=0,
+            cmax=1
+        ),
+        text=[f"{p*100:.1f}%" for p in posterior],
+        textposition='outside'
+    ))
+    fig_bar.update_layout(
+        template="plotly_dark",
+        height=300,
+        xaxis_title="Probability (%)",
+        yaxis_title="",
+        margin=dict(l=20, r=20, t=20, b=40)
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
+    
+    # ---- RECOMMENDED ACTION ----
+    st.markdown("### Recommended Action")
+    st.info(f"**{module.actions[policy]}**")
+    
+    # ---- CURIOSITY ENGINE ----
+    st.markdown("### Curiosity Engine Suggestions")
+    ce = CuriosityEngine()
+    suggestions = ce.suggest(posterior, module.observations, observations)
+    for s in suggestions:
+        st.warning(s)
+    
+    st.markdown("---")
+    
+    # ---- SPIKING COLUMN SIMULATION ----
+    st.markdown("### Neural Oscillation Dynamics (7-Neuron Microcircuit)")
+    
+    sensory = st.slider("Sensory Input Intensity", 0.0, 10.0, 5.0, 0.5)
+    pred_err = st.slider("Prediction Error Signal", 0.0, 10.0, 2.0, 0.5)
+    
+    column = CorticalColumn()
+    traces = {name: [] for name in ["RS", "FS", "IB", "LTS", "ACP", "SGI", "TC"]}
+    
+    for _ in range(400):
+        voltages = column.step(sensory, pred_err)
+        for name, v in zip(traces.keys(), voltages):
+            traces[name].append(v)
+    
+    fig_spike = go.Figure()
+    colors = ["#2E9AFE", "#58D3F7", "#A9D0F5", "#F7BE81", "#F5DA81", "#D0F5A9", "#F78181"]
+    for (name, data), color in zip(traces.items(), colors):
+        fig_spike.add_trace(go.Scatter(y=data, name=name, line=dict(color=color, width=1.5)))
+    
+    fig_spike.update_layout(
+        template="plotly_dark",
+        height=350,
+        xaxis_title="Time (0.25 ms steps)",
+        yaxis_title="Membrane Potential (mV)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        margin=dict(l=20, r=20, t=50, b=40)
+    )
+    st.plotly_chart(fig_spike, use_container_width=True)
+    
+    st.caption("RS: Regular spiking | FS: Fast spiking (gamma) | IB: Intrinsically bursting (beta) | LTS: Low-threshold | ACP: Alpha | SGI: Theta | TC: Thalamocortical (delta)")
+    
+    st.markdown("---")
+    
+    # ---- 3D MARKOV BLANKET ----
+    st.markdown("### Hierarchical Markov Blanket (3D Visualization)")
+    
+    # Create nested spheres representing Markov blanket boundaries
+    u = np.linspace(0, 2 * np.pi, 50)
+    v = np.linspace(0, np.pi, 50)
+    
+    surfaces = []
+    radii = [1.0, 0.7, 0.4]
+    opacities = [0.3, 0.5, 0.8]
+    names = ["External States", "Blanket (Sensory + Active)", "Internal States"]
+    colorscales = ["ice", "teal", "blues"]
+    
+    for r, op, name, cs in zip(radii, opacities, names, colorscales):
+        x = r * np.outer(np.cos(u), np.sin(v))
+        y = r * np.outer(np.sin(u), np.sin(v))
+        z = r * np.outer(np.ones(np.size(u)), np.cos(v))
+        surfaces.append(go.Surface(x=x, y=y, z=z, colorscale=cs, opacity=op, name=name, showscale=False))
+    
+    fig_mb = go.Figure(data=surfaces)
+    fig_mb.update_layout(
+        template="plotly_dark",
+        height=450,
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
+            bgcolor="#0E1117"
+        ),
+        margin=dict(l=0, r=0, t=30, b=0),
+        title=dict(text="Nested Markov Blanket Boundaries", font=dict(color="#58D3F7"))
+    )
+    st.plotly_chart(fig_mb, use_container_width=True)
+ui/report_viewer.py
+python
+
+
+import streamlit as st
+from ui.templates import build_25step_report
+def render_report_panel():
+    st.markdown("## 📑 25-Step Analytical Report")
+    
+    if st.session_state.posterior is None:
+        st.warning("⚠️ No inference results. Please run **Case Input** first.")
+        return
+    
+    module = st.session_state.module
+    posterior = st.session_state.posterior
+    policy = st.session_state.policy
+    observations = st.session_state.observations
+    
+    report = build_25step_report(module, posterior, policy, observations)
+    
+    st.markdown(f"<div class='report-box'>{report}</div>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.download_button(
+        label="📥 Download Report (Markdown)",
+        data=report,
+        file_name="clinical_report.md",
+        mime="text/markdown"
+    )
+ui/templates.py
+python
+
+
+import numpy as np
+def build_25step_report(module, posterior, policy, observations):
+    """Generate the full 25-step clinical reasoning report."""
+    
+    top_idx = int(np.argmax(posterior))
+    top_diagnosis = module.states[top_idx]
+    top_prob = posterior[top_idx] * 100
+    recommended_action = module.actions[policy]
+    
+    # Build checked observations
+    checked_obs = [obs for obs, c in zip(module.observations, observations) if c == 1]
+    unchecked_obs = [obs for obs, c in zip(module.observations, observations) if c == 0]
+    
+    report = f"""
+# 25-Step Clinical Reasoning Report
+**Module:** {module.name}  
+**Generated by:** Swamy's Neural Systems – Medical AO  
+---
+## DIAGNOSTIC PHASE (Steps 1–8)
+### 1. Clinical Presentation & Chief Complaint Analysis
+**Findings Reported:** {', '.join(checked_obs) if checked_obs else 'None specified'}
+Key syndromes identified based on input observations require systematic evaluation through the active inference framework.
+### 2. History Taking & Contextualization
+**High-value features to confirm:**
+- Temporal evolution of symptoms
+- Risk factor exposure
+- Medication and substance history
+- Family and social history
+### 3. Physical Examination Interpretation
+Pattern recognition based on reported findings suggests systematic organ involvement requiring targeted examination.
+### 4. Differential Diagnosis Generation (Ranked)
+| Rank | Diagnosis | Probability |
+|------|-----------|-------------|
+"""
+    
+    # Add ranked diagnoses
+    sorted_indices = np.argsort(posterior)[::-1]
+    for rank, idx in enumerate(sorted_indices, 1):
+        report += f"| {rank} | {module.states[idx]} | {posterior[idx]*100:.1f}% |\n"
+    
+    report += f"""
+### 5. Investigations Selection
+**Recommended based on uncertainty profile:**
+- Primary investigations to confirm/exclude top diagnosis
+- Consider: {', '.join(unchecked_obs[:3]) if unchecked_obs else 'No additional observations suggested'}
+### 6. Diagnostic Confirmation
+**Working Diagnosis:** {top_diagnosis}  
+**Confidence:** {top_prob:.1f}%
+### 7. Pathophysiology Mapping
+Mechanistic chain linking observed findings to pathological state requires disease-specific elaboration.
+### 8. Homeostatic Derangements Analysis
+Active inference posterior suggests primary disruption in regulatory mechanisms consistent with {top_diagnosis}.
+---
+## THERAPEUTIC PHASE (Steps 9–15)
+### 9. Treatment Planning & Goal Setting
+**Primary Goals:**
+1. Address immediate clinical priorities
+2. Initiate disease-modifying therapy
+3. Prevent complications
+### 10. Acute Intervention & Stabilization
+Immediate actions based on severity assessment and posterior uncertainty.
+### 11. Specific Therapy Initiation
+**Recommended Action:** {recommended_action}
+### 12. Response Monitoring & Adjustment
+Serial assessment parameters to track treatment efficacy.
+### 13. Complication Prevention
+Anticipatory management strategies for known sequelae.
+### 14. Multidisciplinary Coordination
+Specialist referrals indicated based on diagnostic category.
+### 15. Patient Education & Engagement
+Key counseling points for shared decision-making.
+---
+## OPTIMIZATION PHASE (Steps 16–21)
+### 16. Outcome Assessment & Prognostic Evaluation
+Prognostic stratification using validated scoring systems.
+### 17. Rehabilitation & Functional Optimization
+Restorative interventions to maximize functional recovery.
+### 18. Preventive Strategy Implementation
+Secondary and tertiary prevention measures.
+### 19. Discharge Planning & Transition
+Safe transition criteria and follow-up scheduling.
+### 20. Follow-up & Long-term Monitoring
+Surveillance protocol for disease recurrence or progression.
+### 21. Continuity of Care & System Integration
+Longitudinal care plan integration with primary care.
+---
+## ADD-ON MODULES (Steps 22–25)
+### 22. Homeostasis Module
+**Systems Analysis:**
+- Coagulation status
+- Fluid-electrolyte balance
+- Acid-base homeostasis
+- Inflammatory markers
+- Hormonal axes
+### 23. Pathophysiology Module
+**Classification:** Disease category consistent with {module.name}
+### 24. Cause-Effect Relationships
+**Leading Causal Hypothesis:**
+Primary pathogenic mechanism → Secondary effects → Clinical manifestations
+### 25. Consolidated Narrative
+**Assessment:** Based on active inference analysis with {len(checked_obs)} positive findings, the most probable diagnosis is **{top_diagnosis}** ({top_prob:.1f}% posterior probability). 
+**Urgency:** Clinical prioritization required based on acuity indicators.
+**Immediate Next Steps:**
+1. {recommended_action}
+2. Address remaining diagnostic uncertainty ({', '.join(unchecked_obs[:2]) if unchecked_obs else 'Low residual uncertainty'})
+3. Initiate specialist consultation as indicated
+---
+*Report generated using Active Inference framework with Expected Free Energy minimization.*  
+*Swamy's Neural Systems – Where Reason Meets Inference*
+"""
+    
+    return report
+ui/chat_panel.py
+python
+
+
+import streamlit as st
+import numpy as np
+def render_chat_panel():
+    st.markdown("## 💬 Dialogue – Medical AO")
+    st.markdown("*Communicate with your Allostatic Prosthesis*")
+    
+    # Display message history
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            st.markdown(f"<div class='chat-user'>{msg['content']}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-ao'>🧠 {msg['content']}</div>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Input
+    user_input = st.text_input("Enter message", key="chat_input", placeholder="Ask about the current case...")
+    
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        send = st.button("Send", use_container_width=True)
+    with col2:
+        clear = st.button("Clear History", use_container_width=True)
+    
+    if clear:
+        st.session_state.messages = []
+        st.rerun()
+    
+    if send and user_input.strip():
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        # Generate contextual response
+        response = generate_ao_response(user_input)
+        st.session_state.messages.append({"role": "ao", "content": response})
+        st.rerun()
+def generate_ao_response(user_input: str) -> str:
+    """Generate context-aware response from Medical AO."""
+    
+    user_lower = user_input.lower()
+    
+    # Context from current session
+    if st.session_state.posterior is not None:
+        module = st.session_state.module
+        posterior = st.session_state.posterior
+        policy = st.session_state.policy
+        
+        top_idx = int(np.argmax(posterior))
+        top_dx = module.states[top_idx]
+        top_prob = posterior[top_idx] * 100
+        action = module.actions[policy]
+        
+        if any(word in user_lower for word in ["diagnosis", "result", "finding", "conclusion"]):
+            return f"Based on active inference, the leading diagnosis is **{top_dx}** with {top_prob:.1f}% posterior probability. The recommended action is: {action}."
+        
+        elif any(word in user_lower for word in ["uncertain", "confidence", "sure"]):
+            entropy = -np.sum(posterior * np.log2(posterior + 1e-10))
+            max_entropy = np.log2(len(posterior))
+            uncertainty = entropy / max_entropy * 100
+            return f"Current diagnostic uncertainty is {uncertainty:.1f}% (normalized entropy). {'Consider additional investigations.' if uncertainty > 40 else 'Confidence is adequate for clinical action.'}"
+        
+        elif any(word in user_lower for word in ["action", "treat", "next", "recommend"]):
+            return f"The expected free energy analysis recommends: **{action}**. This minimizes both epistemic uncertainty and pragmatic risk."
+        
+        elif any(word in user_lower for word in ["explain", "why", "how"]):
+            return f"The active inference engine computed posterior beliefs by integrating prior probabilities with likelihood of observed findings. {top_dx} best explains the clinical pattern with minimal free energy."
+        
+        else:
+            return f"I'm tracking the current case in **{module.name}**. The leading hypothesis is {top_dx} ({top_prob:.1f}%). How can I assist your reasoning?"
+    
+    else:
+        if any(word in user_lower for word in ["hello", "hi", "start"]):
+            return "Welcome. Navigate to **Case Input** to enter clinical findings, then return here for dialogue-based reasoning support."
+        
+        elif any(word in user_lower for word in ["help", "how", "what"]):
+            return "I support clinical reasoning through active inference. Enter findings in **Case Input**, then ask me about diagnoses, uncertainty, or recommended actions."
+        
+        else:
+            return "No active case loaded. Please run inference from **Case Input** first, then I can provide contextual analysis."
+Deployment Instructions
+1. Create GitHub Repository
+Go to 
+github.com
+ and create swamys-neural-systems.
+
+2. Upload All Files
+Use GitHub's web interface or:
+
+bash
+
+
+git init
+git add .
+git commit -m "Initial commit - Medical AO Dashboard"
+git branch -M main
+git remote add origin [github.com](https://github.com/YOUR_USERNAME/swamys-neural-systems.git)
+git push -u origin main
